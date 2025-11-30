@@ -1,0 +1,12 @@
+[
+  {
+    "item_id": 1,
+    "user_id": 8,
+    "warehouse_id": 1,
+    "name": "scaun",
+    "current_quantity": 4.0,
+    "price": 0.0,
+    "weight": 0.0,
+    "volume": 0.0
+  }
+]

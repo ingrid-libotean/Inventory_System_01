@@ -1,0 +1,18 @@
+[
+  {
+    "transaction_id": 1,
+    "item_id": 1,
+    "warehouse_id": 1,
+    "type": "Acquisition",
+    "quantity": 100.0,
+    "timestamp": "Nov 25, 2025, 10:03:19 PM"
+  },
+  {
+    "transaction_id": 2,
+    "item_id": 2,
+    "warehouse_id": 1,
+    "type": "Removal",
+    "quantity": 20.0,
+    "timestamp": "Nov 25, 2025, 10:03:19 PM"
+  }
+]

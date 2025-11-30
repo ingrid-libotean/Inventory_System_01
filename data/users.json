@@ -1,0 +1,42 @@
+[
+  {
+    "user_id": 5,
+    "name": "",
+    "email": "ingrid@yahoo.com",
+    "password": "parola123",
+    "role": "",
+    "otp_code": "",
+    "warehouses": [],
+    "lists": []
+  },
+  {
+    "user_id": 6,
+    "name": "Nicole sefa lui ingrid",
+    "email": "libotean.nicole318@gmail.com",
+    "password": "qwert56",
+    "role": "Client",
+    "otp_code": "",
+    "warehouses": [],
+    "lists": []
+  },
+  {
+    "user_id": 7,
+    "name": "Annabelle",
+    "email": "ana@e-uvt.ro",
+    "password": "1234",
+    "role": "Client",
+    "otp_code": "",
+    "warehouses": [],
+    "lists": []
+  },
+  {
+    "user_id": 8,
+    "name": "Elena",
+    "email": "ele@e-uvt.ro",
+    "password": "1234",
+    "role": "Client",
+    "otp_code": "",
+    "warehouses": [],
+    "lists": []
+  }
+]
