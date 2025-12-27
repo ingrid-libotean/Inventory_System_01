@@ -1,0 +1,150 @@
+package org.example;
+
+// sa citesc un mesaj din config file sau in arg
+
+import com.myapp.dao.impl.*;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.model.shopping.Category;
+import com.myapp.model.shopping.ShoppingList;
+import com.myapp.model.shopping.ShoppingListItem;
+import com.myapp.model.users.User;
+import com.myapp.model.warehouse.Item;
+import com.myapp.model.warehouse.Transaction;
+import com.myapp.model.warehouse.Warehouse;
+
+import java.util.Date;
+import java.util.List;
+
+
+
+//trebuie mereu tratate exceotiile, daca sunt create
+public class Main {
+    public static void main(String[] args) {
+        UserDAOImpl userDAO = new UserDAOImpl();
+        WarehouseDAOImpl warehouseDAO = new WarehouseDAOImpl();
+        ItemDAOImpl itemDAO = new ItemDAOImpl();
+        TransactionDAOImpl transactionDAO = new TransactionDAOImpl();
+        ShoppingListDAOImpl listDAO = new ShoppingListDAOImpl();
+        ShoppingListItemDAOImpl listItemDAO = new ShoppingListItemDAOImpl();
+        CategoryDAOImpl categoryDAO = new CategoryDAOImpl();
+
+        // ---------- USERS ----------
+
+        //Trebuie sa verific sa bage email-uri dupa un tipar
+
+        User user = new User(1, "Alice", "aliceemail.com", "passhash", "Single", "123456");
+
+        User user2 = new User(1, "Bob", "aliceemail.com", "passhash", "Single", "187656");
+
+
+        //aici creez user-ul
+        try {
+            userDAO.create(user);
+            userDAO.create(user2);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        //aici cauta in functie de id si afiseaza
+        try {
+            User foundUser = userDAO.findById(1);
+            System.out.println("Found user: " + foundUser);
+        } catch (DataNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // ---------- WAREHOUSES ----------
+        Warehouse warehouse = new Warehouse(1, 1, "Main Warehouse", "Downtown");
+        Warehouse warehouse2 = new Warehouse(741, 1, "men Warehouse", "Downtown");
+
+        try {
+            warehouseDAO.create(warehouse);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            Warehouse w = warehouseDAO.findById(1);
+            System.out.println("Found warehouse: " + w.getName());
+        } catch (DataNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // ---------- ITEMS ----------
+        Item item = new Item(1, 1, null, "Milk", 10, 1.5, 1, 1);
+        try {
+            itemDAO.create(item);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            Item i = itemDAO.findById(5);
+            System.out.println("Found item: " + i.getName());
+        } catch (DataNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // ---------- TRANSACTIONS ----------
+        Transaction transaction = new Transaction(1, 1, 1, "Acquisition", 5, new Date());
+        try {
+            transactionDAO.create(transaction);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            Transaction t = transactionDAO.findById(1);
+            System.out.println("Found transaction: " + t.getType() + " qty=" + t.getQuantity());
+        } catch (DataNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // ---------- SHOPPING LISTS ----------
+        ShoppingList list = new ShoppingList(1, 1, "Weekly Groceries");
+        try {
+            listDAO.create(list);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            ShoppingList l = listDAO.findById(1);
+            System.out.println("Found shopping list: " + l.getName());
+        } catch (DataNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // ---------- CATEGORIES ----------
+        Category category = new Category(1, 1, "Dairy", "Shop");
+        try {
+            categoryDAO.create(category);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        //Nu ave ce extrage de aici pentru ca in category avem doar id-ul categoriei si al listei
+//        try {
+//            Category c = categoryDAO.findById(1);
+//            System.out.println("Found category: " + c.getName());
+//        } catch (DataNotFoundException e) {
+//            System.out.println(e.getMessage());
+//        }
+
+        // ---------- SHOPPING LIST ITEMS ----------
+        ShoppingListItem sli = new ShoppingListItem(1, 1, "Milk", 2);
+        try {
+            listItemDAO.create(sli);
+        } catch (DuplicateEntryException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            List<ShoppingListItem> items = listItemDAO.getAll();
+            System.out.println("Shopping list items count: " + items.size());
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
