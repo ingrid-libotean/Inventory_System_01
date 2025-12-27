@@ -1,0 +1,84 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.TransactionDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.warehouse.Transaction;
+import com.myapp.storage.FileStorage;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TransactionDAOImpl implements TransactionDAO {
+
+    private static final String FILE = com.myapp.config.ConfigLoader.getConfig().getTransactionsFile(); // adjust file
+    private final Type listType = new TypeToken<List<Transaction>>() {}.getType();
+
+    public TransactionDAOImpl() {
+        new File("data").mkdirs();
+        try { FileStorage.writeListToFile(FILE, load()); } catch (IOException ignored) {}
+    }
+
+    private List<Transaction> load() {
+        try {
+            List<Transaction> list = FileStorage.readListFromFile(FILE, listType);
+            return list != null ? list : new ArrayList<>();
+        } catch (IOException e) {
+            throw new StorageException("Unable to read transactions.json", e);
+        }
+    }
+
+    private void save(List<Transaction> list) {
+        try {
+            FileStorage.writeListToFile(FILE, list);
+        } catch (IOException e) {
+            throw new StorageException("Unable to write transactions.json", e);
+        }
+    }
+
+    @Override
+    public void create(Transaction transaction) throws DuplicateEntryException {
+        List<Transaction> list = load();
+        if (list.stream().anyMatch(t -> t.getTransaction_id() == transaction.getTransaction_id()))
+            throw new DuplicateEntryException("Transaction ID exists: " + transaction.getTransaction_id());
+        list.add(transaction);
+        save(list);
+    }
+
+    @Override
+    public Transaction findById(int id) throws DataNotFoundException {
+        return load().stream()
+                .filter(t -> t.getTransaction_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("Transaction not found: " + id));
+    }
+
+    @Override
+    public List<Transaction> findAll() { return load(); }
+
+    @Override
+    public void update(Transaction transaction) throws DataNotFoundException {
+        List<Transaction> list = load();
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).getTransaction_id() == transaction.getTransaction_id()) {
+                list.set(i, transaction);
+                save(list);
+                return;
+            }
+        }
+        throw new DataNotFoundException("Transaction not found: " + transaction.getTransaction_id());
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<Transaction> list = load();
+        boolean removed = list.removeIf(t -> t.getTransaction_id() == id);
+        if (!removed) throw new DataNotFoundException("Transaction not found: " + id);
+        save(list);
+    }
+}

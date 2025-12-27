@@ -1,15 +1,57 @@
 @startuml
-'https://plantuml.com/sequence-diagram
+title Flexible Inventory System - Simple Flow Diagram
 
-autonumber
+start
 
-== Initialization ==
+partition "User (Client)" {
+    :Open Website;
+    :Enter Email & Password;
+    :Click Login;
+}
 
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
+partition "Authentication API" {
+    :Validate Credentials;
+    if (Credentials OK?) then (Yes)
+        :Request OTP (if enabled);
+        :Verify OTP;
+        :Return Access Token;
+    else (No)
+        :Show Login Error;
+        stop
+    endif
+}
 
-== Repetition ==
+partition "Dashboard UI" {
+    :Display Warehouses, Items, Options;
+}
 
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+partition "Inventory API" {
+
+    if (User selects 'Warehouses') then (Yes)
+        :GET /warehouses;
+    endif
+
+    if (User selects 'Items') then (Yes)
+        :GET /items?warehouseId;
+    endif
+
+    if (User adds/edits/deletes Item) then (CRUD Action)
+        :POST/PUT/DELETE /items;
+    endif
+
+    if (User records a Transaction) then (Yes)
+        :POST /transactions \n (Acquisition or Removal);
+    endif
+
+    if (User views Reports) then (Yes)
+        :GET /reports \n (Inventory / Transactions);
+    endif
+}
+
+partition "Database" {
+    :Store & Retrieve: \n Users \n Warehouses \n Items \n Transactions \n Reports;
+}
+
+stop
+
 @enduml

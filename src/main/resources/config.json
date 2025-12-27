@@ -1,0 +1,13 @@
+{
+  "mode": "prod",
+
+  "usersFile": "data/users.json",
+  "warehouseFile": "data/warehouses.json",
+  "itemsFile": "data/items.json",
+  "transactionsFile": "data/transactions.json",
+
+  "shoppingListFile": "data/shoppingLists.json",
+  "shoppingListItemFile": "data/shoppingListItems.json",
+
+  "categoryFile": "data/categories.json"
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shopping List</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <style>
+        .item-checked { text-decoration: line-through; color: gray; background-color: #f8f9fa; }
+    </style>
+</head>
+<body class="p-4 bg-light">
+
+<div class="container" style="max-width: 800px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 id="pageTitle">🛒 Shopping List</h3>
+
+        <div>
+            <button class="btn btn-warning me-2" onclick="startExport()">⚡ Simulate Export</button>
+            <a href="shopping-lists.html" class="btn btn-secondary">Back</a>
+        </div>
+    </div>
+
+    <div class="card p-3 mb-3 shadow-sm">
+        <div class="input-group">
+            <input type="text" id="itemName" class="form-control" placeholder="Item (e.g., Eggs)">
+            <input type="number" id="itemQty" class="form-control" placeholder="Qty" style="max-width: 100px;">
+            <button class="btn btn-success" onclick="addItem()">+ Add</button>
+        </div>
+    </div>
+
+    <div id="statusMsg" class="alert alert-info py-1" style="display:none;"></div>
+
+    <ul class="list-group shadow-sm" id="itemsList"></ul>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const listId = urlParams.get('id');
+    const listName = urlParams.get('name');
+    if (!listId) window.location.href = "shopping-lists.html";
+    if (listName) document.getElementById("pageTitle").innerText = `🛒 ${listName}`;
+
+    const API_URL = "http://localhost:8080/api/shopping-items";
+
+    // --- REQUIREMENT #3: Threads ---
+    async function startExport() {
+        const statusDiv = document.getElementById("statusMsg");
+        statusDiv.style.display = "block";
+        statusDiv.innerText = "Requesting export...";
+
+        // Apelăm endpoint-ul care pornește Thread-ul
+        const response = await fetch("http://localhost:8080/api/export/start", {method: "POST"});
+        const text = await response.text();
+
+        statusDiv.innerText = text + " (Check Java Console)";
+        setTimeout(() => statusDiv.style.display = "none", 5000);
+    }
+
+    // --- REQUIREMENT #4: Sockets ---
+    let stompClient = null;
+
+    function connectSocket() {
+        // Ne conectăm la endpoint-ul definit în Java
+        const socket = new SockJS('http://localhost:8080/ws-inventory');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Dezactivăm logurile din consolă ca să fie curat
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected to WebSocket: ' + frame);
+
+            // Ne abonăm la canalul specific acestei liste
+            stompClient.subscribe('/topic/list/' + listId, function (message) {
+                console.log("Socket Update Received!");
+                // Când primim mesajul "UPDATE", reîncărcăm lista automat
+                loadItems();
+            });
+        });
+    }
+
+    // --- Funcții Standard (CRUD) ---
+    loadItems();
+    connectSocket(); // Pornim conexiunea la încărcarea paginii
+
+    async function loadItems() {
+        const response = await fetch(`${API_URL}/list/${listId}`);
+        const items = await response.json();
+        const listContainer = document.getElementById("itemsList");
+        listContainer.innerHTML = "";
+
+        items.forEach(item => {
+            const cssClass = item.checked ? "item-checked" : "";
+            const btnColor = item.checked ? "btn-secondary" : "btn-outline-success";
+            const row = `
+                <li class="list-group-item d-flex justify-content-between align-items-center ${cssClass}">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold fs-5">${item.quantity}x</span>
+                        <span class="fs-5">${item.name}</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm ${btnColor}" onclick="toggleItem(${item.item_id})">✔</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${item.item_id})">X</button>
+                    </div>
+                </li>`;
+            listContainer.innerHTML += row;
+        });
+    }
+
+    async function addItem() {
+        const name = document.getElementById("itemName").value;
+        const qty = document.getElementById("itemQty").value || 1;
+        if (!name) return;
+
+        await fetch(`${API_URL}/add`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ listId: listId, name: name, quantity: qty })
+        });
+        // Nu mai e nevoie de loadItems() aici, pentru că Socket-ul va declanșa actualizarea!
+        document.getElementById("itemName").value = "";
+        document.getElementById("itemQty").value = "";
+    }
+
+    async function toggleItem(id) {
+        await fetch(`${API_URL}/toggle/${id}`, { method: "PUT" });
+        // Socket-ul se ocupă de refresh
+    }
+
+    async function deleteItem(id) {
+        await fetch(`${API_URL}/delete/${id}`, { method: "DELETE" });
+        // Socket-ul se ocupă de refresh
+    }
+</script>
+</body>
+</html>

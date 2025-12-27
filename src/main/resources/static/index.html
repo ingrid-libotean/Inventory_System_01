@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Access</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .card { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: none; width: 400px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card p-4">
+    <h3 class="text-center mb-4" id="formTitle">Login</h3>
+
+    <div id="alertBox" class="alert d-none"></div>
+
+    <form id="loginForm">
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="loginEmail" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" id="loginPass" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Login</button>
+        <div class="text-center mt-3">
+            <small>New user? <a href="#" onclick="toggleForms()">Register here</a></small>
+        </div>
+    </form>
+
+    <form id="registerForm" class="hidden">
+        <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="regName" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="regEmail" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" id="regPass" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Create Account</button>
+        <div class="text-center mt-3">
+            <small>Already have an account? <a href="#" onclick="toggleForms()">Login here</a></small>
+        </div>
+    </form>
+</div>
+
+<script>
+    const API_URL = "http://localhost:8080/auth";
+
+    // 1. Comutare între Login și Register
+    function toggleForms() {
+        const loginForm = document.getElementById("loginForm");
+        const registerForm = document.getElementById("registerForm");
+        const title = document.getElementById("formTitle");
+
+        if (loginForm.classList.contains("hidden")) {
+            loginForm.classList.remove("hidden");
+            registerForm.classList.add("hidden");
+            title.innerText = "Login";
+        } else {
+            loginForm.classList.add("hidden");
+            registerForm.classList.remove("hidden");
+            title.innerText = "Create Account";
+        }
+        hideAlert();
+    }
+
+    // 2. Logica de REGISTER
+    document.getElementById("registerForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const userData = {
+            name: document.getElementById("regName").value,
+            email: document.getElementById("regEmail").value,
+            password: document.getElementById("regPass").value,
+            role: "CLIENT" // Rol implicit
+        };
+
+        try {
+            const response = await fetch(API_URL + "/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(userData)
+            });
+
+            const text = await response.text();
+
+            if (text.includes("Success")) {
+                showAlert("Account created! Please login.", "success");
+                toggleForms(); // Trecem înapoi la ecranul de login
+            } else {
+                showAlert(text, "danger");
+            }
+        } catch (err) {
+            showAlert("Server error: Is Java running?", "danger");
+        }
+    });
+
+    // 3. Logica de LOGIN
+    document.getElementById("loginForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const credentials = {
+            email: document.getElementById("loginEmail").value,
+            password: document.getElementById("loginPass").value
+        };
+
+        try {
+            const response = await fetch(API_URL + "/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(credentials)
+            });
+
+            const text = await response.text();
+
+            if (text.includes("Success")) {
+                // Răspunsul este: "Success: Login valid... Role: ADMIN"
+                // Extragem ultimul cuvânt (rolul)
+                const parts = text.split("Role: ");
+                const role = parts.length > 1 ? parts[1].trim() : "CLIENT";
+
+                sessionStorage.setItem("userEmail", credentials.email);
+                sessionStorage.setItem("userRole", role); // <-- AICI SALVĂM ROLUL
+
+                window.location.href = "dashboard.html";
+            } else {
+                showAlert(text, "danger");
+            }
+        } catch (err) {
+            showAlert("Connection refused. Start the Backend!", "danger");
+        }
+    });
+
+    // Funcții ajutătoare pentru afișare mesaje
+    function showAlert(msg, type) {
+        const box = document.getElementById("alertBox");
+        box.className = `alert alert-${type}`;
+        box.innerText = msg;
+        box.classList.remove("d-none");
+    }
+    function hideAlert() {
+        document.getElementById("alertBox").classList.add("d-none");
+    }
+</script>
+
+</body>
+</html>

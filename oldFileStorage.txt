@@ -1,0 +1,45 @@
+package com.myapp.storage;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.*;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
+public class FileStorage {
+
+    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    private static void ensureFileExists(String filePath) throws IOException {
+        File file = new File(filePath);
+
+        // Ensure parent directories exist
+        if (!file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
+
+        // Create empty JSON array if file is missing
+        if (!file.exists()) {
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write("[]");
+            }
+        }
+    }
+
+    public static <T> void writeListToFile(String filePath, List<T> data) throws IOException {
+        ensureFileExists(filePath);
+        try (FileWriter writer = new FileWriter(filePath)) {
+            gson.toJson(data, writer);
+        }
+    }
+
+    public static <T> List<T> readListFromFile(String filePath, Type typeOfT) throws IOException {
+        ensureFileExists(filePath);
+        try (FileReader reader = new FileReader(filePath)) {
+            List<T> list = gson.fromJson(reader, typeOfT);
+            return list != null ? list : new ArrayList<>();
+        }
+    }
+}

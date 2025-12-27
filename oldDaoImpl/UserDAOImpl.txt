@@ -1,0 +1,135 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.UserDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.users.User;
+import com.myapp.storage.FileStorage;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.List;
+
+public class UserDAOImpl implements UserDAO {
+
+    private static final String FILE = com.myapp.config.ConfigLoader.getConfig().getUsersFile();
+    private final Type listType = new TypeToken<List<User>>() {}.getType();
+
+    public UserDAOImpl() {
+        // no automatic overwrite
+    }
+
+    private List<User> loadAll() {
+        try {
+            return FileStorage.readListFromFile(FILE, listType);
+        } catch (IOException e) {
+            throw new StorageException("Unable to read users file: " + FILE, e);
+        }
+    }
+
+    private void saveAll(List<User> users) {
+        try {
+            FileStorage.writeListToFile(FILE, users);
+        } catch (IOException e) {
+            throw new StorageException("Unable to write users file: " + FILE, e);
+        }
+    }
+
+    private int generateId(List<User> users) {
+        return users.stream()
+                .mapToInt(User::getUser_id)
+                .max()
+                .orElse(0) + 1;
+    }
+
+    @Override
+    public void create(User user) throws DuplicateEntryException {
+        List<User> users = loadAll();
+
+        if (users.stream().anyMatch(u -> u.getEmail().equalsIgnoreCase(user.getEmail()))) {
+            throw new DuplicateEntryException("Email already registered: " + user.getEmail());
+        }
+
+        user.setUser_id(generateId(users));
+        users.add(user);
+        saveAll(users);
+    }
+
+    @Override
+    public User findById(int id) throws DataNotFoundException {
+        return loadAll().stream()
+                .filter(u -> u.getUser_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("User not found: " + id));
+    }
+
+    @Override
+    public User findByEmail(String email) throws DataNotFoundException {
+        return loadAll().stream()
+                .filter(u -> u.getEmail().equalsIgnoreCase(email))
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("User not found with email: " + email));
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return loadAll().stream()
+                .anyMatch(u -> u.getEmail().equalsIgnoreCase(email));
+    }
+
+    @Override
+    public List<User> findAll() {
+        return loadAll();
+    }
+
+    @Override
+    public void update(User user) throws DataNotFoundException {
+        List<User> users = loadAll();
+        boolean found = false;
+        for (int i = 0; i < users.size(); i++) {
+            if (users.get(i).getUser_id() == user.getUser_id()) {
+                users.set(i, user);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            throw new DataNotFoundException("User not found: " + user.getUser_id());
+        }
+        saveAll(users);
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<User> users = loadAll();
+        boolean removed = users.removeIf(u -> u.getUser_id() == id);
+        if (!removed) {
+            throw new DataNotFoundException("User not found: " + id);
+        }
+        saveAll(users);
+
+        // Delete user-specific folder and all their data files
+        File userDir = new File("data/users/" + id);
+        deleteDirectoryRecursively(userDir);
+    }
+
+    // Helper to delete directory recursively
+    private void deleteDirectoryRecursively(File dir) {
+        if (dir.exists()) {
+            File[] entries = dir.listFiles();
+            if (entries != null) {
+                for (File entry : entries) {
+                    if (entry.isDirectory()) {
+                        deleteDirectoryRecursively(entry);
+                    } else {
+                        entry.delete();
+                    }
+                }
+            }
+            dir.delete();
+        }
+    }
+}

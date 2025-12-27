@@ -1,0 +1,92 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.CategoryDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.shopping.Category;
+import com.myapp.storage.FileStorage;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
+public class CategoryDAOImpl implements CategoryDAO {
+
+    private static final String FILE = com.myapp.config.ConfigLoader.getConfig().getCategoryFile();
+    private final Type listType = new TypeToken<List<Category>>() {}.getType();
+
+    private List<Category> load() {
+        try {
+            List<Category> categories = FileStorage.readListFromFile(FILE, listType);
+            return categories != null ? categories : new ArrayList<>();
+        } catch (IOException e) {
+            throw new StorageException("Failed to read categories.json", e);
+        }
+    }
+
+    private void save(List<Category> categories) {
+        try {
+            FileStorage.writeListToFile(FILE, categories);
+        } catch (IOException e) {
+            throw new StorageException("Failed to write categories.json", e);
+        }
+    }
+
+    @Override
+    public void create(Category category) throws DuplicateEntryException {
+        List<Category> categories = load();
+        if (categories.stream().anyMatch(c -> c.getCategory_id() == category.getCategory_id()))
+            throw new DuplicateEntryException("Category ID already exists: " + category.getCategory_id());
+        categories.add(category);
+        save(categories);
+    }
+
+    @Override
+    public Category getById(int id) throws DataNotFoundException {
+        return load().stream()
+                .filter(c -> c.getCategory_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("Category not found: " + id));
+    }
+
+    @Override
+    public List<Category> findByList(int listId) {
+        List<Category> categories = load();
+        List<Category> result = new ArrayList<>();
+        for (Category c : categories) {
+            if (c.getList_id() == listId) {
+                result.add(c);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<Category> getAll() {
+        return load();
+    }
+
+    @Override
+    public void update(Category category) throws DataNotFoundException {
+        List<Category> categories = load();
+        for (int i = 0; i < categories.size(); i++) {
+            if (categories.get(i).getCategory_id() == category.getCategory_id()) {
+                categories.set(i, category);
+                save(categories);
+                return;
+            }
+        }
+        throw new DataNotFoundException("Category not found: " + category.getCategory_id());
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<Category> categories = load();
+        boolean removed = categories.removeIf(c -> c.getCategory_id() == id);
+        if (!removed) throw new DataNotFoundException("Category not found: " + id);
+        save(categories);
+    }
+}

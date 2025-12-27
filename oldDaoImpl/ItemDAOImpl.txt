@@ -1,0 +1,97 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.ItemDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.warehouse.Item;
+import com.myapp.storage.FileStorage;
+
+import java.lang.reflect.Type;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class ItemDAOImpl implements ItemDAO {
+
+    private final int userId;
+    private final String FILE;
+    private final Type listType = new TypeToken<List<Item>>() {}.getType();
+
+    public ItemDAOImpl(int userId) {
+        this.userId = userId;
+        this.FILE = "data/users/" + userId + "/items.json";
+    }
+
+    private List<Item> loadAll() {
+        try {
+            return FileStorage.readListFromFile(FILE, listType);
+        } catch (Exception e) {
+            throw new StorageException("Unable to read items for user " + userId, e);
+        }
+    }
+
+    private void saveAll(List<Item> items) {
+        try {
+            FileStorage.writeListToFile(FILE, items);
+        } catch (Exception e) {
+            throw new StorageException("Unable to write items for user " + userId, e);
+        }
+    }
+
+    @Override
+    public void create(Item item) throws DuplicateEntryException {
+        List<Item> list = loadAll();
+        item.setUser_id(userId);
+        int newId = list.stream()
+                .mapToInt(Item::getItem_id)
+                .max()
+                .orElse(0) + 1;
+        item.setItem_id(newId);
+        list.add(item);
+        saveAll(list);
+    }
+
+    @Override
+    public Item findById(int id) throws DataNotFoundException {
+        return loadAll().stream()
+                .filter(i -> i.getItem_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("Item not found: " + id));
+    }
+
+    @Override
+    public List<Item> findAll() {
+        return loadAll();
+    }
+
+    @Override
+    public void update(Item item) throws DataNotFoundException {
+        List<Item> list = loadAll();
+        boolean found = false;
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).getItem_id() == item.getItem_id()) {
+                list.set(i, item);
+                found = true;
+                break;
+            }
+        }
+        if (!found) throw new DataNotFoundException("Item not found: " + item.getItem_id());
+        saveAll(list);
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<Item> list = loadAll();
+        boolean removed = list.removeIf(i -> i.getItem_id() == id);
+        if (!removed) throw new DataNotFoundException("Item not found: " + id);
+        saveAll(list);
+    }
+
+    // Optional helper
+    public List<Item> findByWarehouse(int warehouseId) {
+        return loadAll().stream()
+                .filter(i -> i.getWarehouse_id() == warehouseId)
+                .collect(Collectors.toList());
+    }
+}

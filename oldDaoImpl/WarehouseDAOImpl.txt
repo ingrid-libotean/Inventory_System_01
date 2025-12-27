@@ -1,0 +1,89 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.WarehouseDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.warehouse.Warehouse;
+import com.myapp.storage.FileStorage;
+
+import java.lang.reflect.Type;
+import java.util.List;
+
+public class WarehouseDAOImpl implements WarehouseDAO {
+
+    private final int userId;
+    private final String FILE;
+    private final Type listType = new TypeToken<List<Warehouse>>() {}.getType();
+
+    public WarehouseDAOImpl(int userId) {
+        this.userId = userId;
+        this.FILE = "data/users/" + userId + "/warehouses.json";
+    }
+
+    private List<Warehouse> loadAll() {
+        try {
+            return FileStorage.readListFromFile(FILE, listType);
+        } catch (Exception e) {
+            throw new StorageException("Unable to read warehouses for user " + userId, e);
+        }
+    }
+
+    private void saveAll(List<Warehouse> list) {
+        try {
+            FileStorage.writeListToFile(FILE, list);
+        } catch (Exception e) {
+            throw new StorageException("Unable to write warehouses for user " + userId, e);
+        }
+    }
+
+    @Override
+    public void create(Warehouse warehouse) throws DuplicateEntryException {
+        List<Warehouse> list = loadAll();
+        warehouse.setUser_id(userId);
+        int newId = list.stream()
+                .mapToInt(Warehouse::getWarehouse_id)
+                .max()
+                .orElse(0) + 1;
+        warehouse.setWarehouse_id(newId);
+        list.add(warehouse);
+        saveAll(list);
+    }
+
+    @Override
+    public Warehouse findById(int id) throws DataNotFoundException {
+        return loadAll().stream()
+                .filter(w -> w.getWarehouse_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("Warehouse not found: " + id));
+    }
+
+    @Override
+    public List<Warehouse> findAll() {
+        return loadAll();
+    }
+
+    @Override
+    public void update(Warehouse warehouse) throws DataNotFoundException {
+        List<Warehouse> list = loadAll();
+        boolean found = false;
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).getWarehouse_id() == warehouse.getWarehouse_id()) {
+                list.set(i, warehouse);
+                found = true;
+                break;
+            }
+        }
+        if (!found) throw new DataNotFoundException("Warehouse not found: " + warehouse.getWarehouse_id());
+        saveAll(list);
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<Warehouse> list = loadAll();
+        boolean removed = list.removeIf(w -> w.getWarehouse_id() == id);
+        if (!removed) throw new DataNotFoundException("Warehouse not found: " + id);
+        saveAll(list);
+    }
+}

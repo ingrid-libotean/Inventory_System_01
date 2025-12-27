@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; padding: 50px; }
+        .option-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .option-card:hover { transform: scale(1.05); }
+        .icon { font-size: 3rem; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 class="text-center mb-5">Welcome, <span id="usernameDisplay">User</span>!</h2>
+
+    <div class="text-center mb-4">
+        <button id="adminBtn" class="btn btn-danger" style="display: none;" onclick="location.href='admin.html'">
+            🛡️ Admin Panel
+        </button>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card option-card bg-primary text-white" onclick="goToWarehouses()">
+                <div class="icon">🏭</div> <h3>My Warehouses</h3>
+                <p>Manage inventory, items, and stock.</p>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card option-card bg-success text-white" onclick="goToShoppingList()">
+                <div class="icon">🛒</div>
+                <h3>Shopping Lists</h3>
+                <p>Plan your next acquisitions.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-5">
+        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<script>
+    // Verificăm dacă userul e logat (folosind sessionStorage - o memorie a browserului)
+    const userEmail = sessionStorage.getItem("userEmail");
+
+    // Verificăm rolul
+    const role = sessionStorage.getItem("userRole");
+
+    if (role === "ADMIN") {
+        document.getElementById("adminBtn").style.display = "inline-block";
+    }
+
+    if (!userEmail) {
+        // Dacă nu e logat, îl trimitem înapoi la login
+        window.location.href = "index.html";
+    }
+
+    // Setăm numele (simulat momentan)
+    document.getElementById("usernameDisplay").innerText = "Manager";
+
+    function goToWarehouses() {
+        window.location.href = "warehouses.html";
+    }
+
+    function goToShoppingList() {
+        window.location.href = "shopping-lists.html";
+    }
+
+    function logout() {
+        sessionStorage.clear();
+        window.location.href = "index.html";
+    }
+</script>
+
+</body>
+</html>

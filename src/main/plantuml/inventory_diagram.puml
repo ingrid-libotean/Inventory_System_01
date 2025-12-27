@@ -1,15 +1,87 @@
 @startuml
-'https://plantuml.com/sequence-diagram
+skinparam classAttributeIconSize 0
 
-autonumber
+' ========== INTERFACES ==========
+interface Storable {
+    + save() : void
+    + load() : void
+}
 
-== Initialization ==
+interface Searchable<T> {
+    + searchById(id : int) : T
+    + searchByName(name : String) : List<T>
+}
 
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
+' ========== CLASSES ==========
 
-== Repetition ==
+class User {
+    - user_id : int
+    - name : String
+    - email : String
+    - password : String
+    - role : String
+    - otp_code : String
+    - warehouses : List<Warehouse>
+    - lists : List<ShoppingList>
+    --
+    + getWarehouses() : List<Warehouse>
+    + getLists() : List<ShoppingList>
+}
 
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+class ShoppingList {
+    - list_id : int
+    - user_id : int
+    - name : String
+    --
+    + getItems() : List<ShoppingListItem>
+}
+
+class ShoppingListItem {
+    - item_id : int
+    - user_id : int
+    - list_id : int
+    - name : String
+    - quantity : double
+}
+
+class Warehouse {
+    - warehouse_id : int
+    - user_id : int
+    - name : String
+    - location : String
+    --
+    + getItems() : List<Item>
+}
+
+class Item {
+    - item_id : int
+    - warehouse_id : Integer  ' nullable or may be absent
+    - name : String
+    - current_quantity : double
+    - price : double
+    - weight : double
+    - volume : double
+}
+
+' ========== RELATIONSHIPS ==========
+
+User "1" --> "0..*" Warehouse : owns
+User "1" --> "0..*" ShoppingList : has
+
+ShoppingList "1" --> "0..*" ShoppingListItem : contains
+
+Warehouse "1" --> "0..*" Item : stores
+
+' ========== INTERFACE IMPLEMENTATIONS ==========
+
+User ..|> Storable
+ShoppingList ..|> Storable
+ShoppingListItem ..|> Storable
+Warehouse ..|> Storable
+Item ..|> Storable
+
+User ..|> Searchable
+Warehouse ..|> Searchable
+Item ..|> Searchable
+
 @enduml

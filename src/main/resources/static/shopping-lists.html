@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Shopping Lists</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4 bg-light">
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🛒 My Shopping Lists</h2>
+        <a href="dashboard.html" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card mb-4 p-3 shadow-sm border-success">
+        <h5 class="text-success">Create New List</h5>
+        <div class="input-group">
+            <input type="text" id="listName" class="form-control" placeholder="List Name (e.g., Sunday Groceries)">
+            <button class="btn btn-success" onclick="addList()">+ Create List</button>
+        </div>
+    </div>
+
+    <div class="row" id="listsContainer">
+        <p class="text-center text-muted">Loading lists...</p>
+    </div>
+</div>
+
+<script>
+    const userEmail = sessionStorage.getItem("userEmail");
+    if (!userEmail) window.location.href = "index.html";
+
+    const API_URL = "http://localhost:8080/api/shopping-lists";
+
+    loadLists();
+
+    async function loadLists() {
+        const response = await fetch(`${API_URL}/user/${userEmail}`);
+        const lists = await response.json();
+
+        const container = document.getElementById("listsContainer");
+        container.innerHTML = "";
+
+        if (lists.length === 0) {
+            container.innerHTML = "<p class='text-center'>No shopping lists yet.</p>";
+            return;
+        }
+
+        lists.forEach(list => {
+            const card = `
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body border-top border-success border-3">
+                            <div class="d-flex justify-content-between">
+                                <h5 class="card-title">${list.name}</h5>
+                                <span class="badge bg-secondary">${list.status}</span>
+                            </div>
+                            <p class="text-muted small">Created: ${list.createdDate}</p>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button class="btn btn-outline-success"
+        onclick="location.href='shopping-items.html?id=${list.list_id}&name=${list.name}'">
+    View Items
+</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteList(${list.list_id})">Delete List</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += card;
+        });
+    }
+
+    async function addList() {
+        const name = document.getElementById("listName").value;
+        if (!name) return alert("Name required!");
+
+        await fetch(`${API_URL}/add?email=${userEmail}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name })
+        });
+
+        document.getElementById("listName").value = "";
+        loadLists();
+    }
+
+    async function deleteList(id) {
+        if(confirm("Delete this list?")) {
+            await fetch(`${API_URL}/delete/${id}`, { method: "DELETE" });
+            loadLists();
+        }
+    }
+</script>
+
+</body>
+</html>

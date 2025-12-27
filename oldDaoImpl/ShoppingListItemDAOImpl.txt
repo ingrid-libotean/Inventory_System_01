@@ -1,0 +1,104 @@
+package com.myapp.dao.impl;
+
+import com.google.gson.reflect.TypeToken;
+import com.myapp.dao.ShoppingListItemDAO;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.exceptions.StorageException;
+import com.myapp.model.shopping.ShoppingListItem;
+import com.myapp.storage.FileStorage;
+
+import java.lang.reflect.Type;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class ShoppingListItemDAOImpl implements ShoppingListItemDAO {
+
+    private final int userId;
+    private final String FILE;
+    private final Type listType = new TypeToken<List<ShoppingListItem>>() {}.getType();
+
+    public ShoppingListItemDAOImpl(int userId) {
+        this.userId = userId;
+        this.FILE = "data/users/" + userId + "/shoppingListItems.json";
+    }
+
+    private List<ShoppingListItem> loadAll() {
+        try {
+            return FileStorage.readListFromFile(FILE, listType);
+        } catch (Exception e) {
+            throw new StorageException("Unable to read shoppingListItems for user " + userId, e);
+        }
+    }
+
+    private void saveAll(List<ShoppingListItem> items) {
+        try {
+            FileStorage.writeListToFile(FILE, items);
+        } catch (Exception e) {
+            throw new StorageException("Unable to write shoppingListItems for user " + userId, e);
+        }
+    }
+
+    @Override
+    public void create(ShoppingListItem item) throws DuplicateEntryException {
+        List<ShoppingListItem> items = loadAll();
+        item.setUser_id(userId);
+        int newId = items.stream()
+                .mapToInt(ShoppingListItem::getItem_id)
+                .max()
+                .orElse(0) + 1;
+        item.setItem_id(newId);
+        items.add(item);
+        saveAll(items);
+    }
+
+    @Override
+    public ShoppingListItem findById(int id) throws DataNotFoundException {
+        return loadAll().stream()
+                .filter(i -> i.getItem_id() == id)
+                .findFirst()
+                .orElseThrow(() -> new DataNotFoundException("ShoppingListItem not found: " + id));
+    }
+
+    @Override
+    public List<ShoppingListItem> findAll() {
+        return loadAll();
+    }
+
+    @Override
+    public List<ShoppingListItem> findByList(int listId) {
+        return loadAll().stream()
+                .filter(item -> item.getList_id() == listId)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ShoppingListItem> getByCategory(int categoryId) {
+        return loadAll().stream()
+                .filter(item -> item.getCategory_id() == categoryId)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void update(ShoppingListItem item) throws DataNotFoundException {
+        List<ShoppingListItem> items = loadAll();
+        boolean found = false;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).getItem_id() == item.getItem_id()) {
+                items.set(i, item);
+                found = true;
+                break;
+            }
+        }
+        if (!found) throw new DataNotFoundException("ShoppingListItem not found: " + item.getItem_id());
+        saveAll(items);
+    }
+
+    @Override
+    public void delete(int id) throws DataNotFoundException {
+        List<ShoppingListItem> items = loadAll();
+        boolean removed = items.removeIf(i -> i.getItem_id() == id);
+        if (!removed) throw new DataNotFoundException("ShoppingListItem not found: " + id);
+        saveAll(items);
+    }
+}

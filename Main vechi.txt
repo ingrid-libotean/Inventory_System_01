@@ -1,0 +1,431 @@
+package org.example;
+
+import com.myapp.dao.impl.*;
+import com.myapp.exceptions.DataNotFoundException;
+import com.myapp.exceptions.DuplicateEntryException;
+import com.myapp.model.users.User;
+import com.myapp.model.shopping.ShoppingList;
+import com.myapp.model.shopping.ShoppingListItem;
+import com.myapp.model.warehouse.Warehouse;
+import com.myapp.model.warehouse.Item;
+import com.myapp.validation.InputValidator;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    private static final Scanner scanner = new Scanner(System.in);
+
+    // Stare globală pentru sesiunea curentă
+    private static User currentUser;
+
+    // DAOs
+    private static final UserDAOImpl userDAO = new UserDAOImpl();
+    private static ShoppingListDAOImpl shoppingListDAO;
+    private static ShoppingListItemDAOImpl shoppingListItemDAO;
+    private static WarehouseDAOImpl warehouseDAO;
+    private static ItemDAOImpl itemDAO;
+
+    public static void main(String[] args) {
+        try {
+            System.out.println("=== APPLICATION STARTED ===");
+            runAuthLoop();
+        } catch (Exception e) {
+            System.out.println("Critical error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // AUTHENTICATION LOOP
+    // ----------------------------------------------------------------
+    private static void runAuthLoop() {
+        boolean exitApp = false;
+        while (!exitApp) {
+            System.out.println("\n--- WELCOME ---");
+            System.out.println("1. Login");
+            System.out.println("2. Register");
+            System.out.println("3. Exit App");
+
+            String choice = readString("Select option: ");
+
+            switch (choice) {
+                case "1":
+                    if (login()) {
+                        // Inițializăm DAO-urile dependente de user
+                        initSessionDAOs();
+                        // Redirecționăm către scena corectă (Req 10)
+                        dispatchUserToScene();
+                    }
+                    break;
+                case "2":
+                    register();
+                    break;
+                case "3":
+                    System.out.println("Exiting application. Goodbye!");
+                    exitApp = true;
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    private static void initSessionDAOs() {
+        int userId = currentUser.getUser_id();
+        shoppingListDAO = new ShoppingListDAOImpl(userId);
+        shoppingListItemDAO = new ShoppingListItemDAOImpl(userId);
+        warehouseDAO = new WarehouseDAOImpl(userId);
+        itemDAO = new ItemDAOImpl(userId);
+    }
+
+    // ----------------------------------------------------------------
+    // SCENE DISPATCHER (REQ 10)
+    // ----------------------------------------------------------------
+    private static void dispatchUserToScene() {
+        String role = currentUser.getRole();
+        if (role == null) role = "CLIENT"; // Fallback
+
+        System.out.println("\nLogin successful! Logged in as: " + currentUser.getName() + " [" + role + "]");
+
+        switch (role.toUpperCase()) {
+            case "ADMIN":
+                runAdminScene();
+                break;
+            case "STAFF":
+                runStaffScene(); // Gestionează stocul
+                break;
+            case "CLIENT":
+            default:
+                runClientScene(); // Cumpărături
+                break;
+        }
+
+        // La ieșirea din scenă (logout), resetăm userul
+        currentUser = null;
+        System.out.println("Logged out successfully.");
+    }
+
+    // ----------------------------------------------------------------
+    // SCENE 1: ADMIN (Manage Users)
+    // ----------------------------------------------------------------
+    private static void runAdminScene() {
+        boolean back = false;
+        while (!back) {
+            System.out.println("\n--- ADMIN DASHBOARD ---");
+            System.out.println("1. View All Users");
+            System.out.println("2. Delete User");
+            System.out.println("3. Logout");
+
+            String choice = readString("Choose option: ");
+            switch (choice) {
+                case "1":
+                    List<User> users = userDAO.findAll();
+                    System.out.println("Registered Users:");
+                    System.out.printf("%-5s %-20s %-25s %-10s%n", "ID", "Name", "Email", "Role");
+                    System.out.println("-------------------------------------------------------------");
+                    for (User u : users) {
+                        System.out.printf("%-5d %-20s %-25s %-10s%n",
+                                u.getUser_id(), u.getName(), u.getEmail(), u.getRole());
+                    }
+                    break;
+                case "2":
+                    int idToDelete = readInt("Enter User ID to delete: ");
+                    if (idToDelete == currentUser.getUser_id()) {
+                        System.out.println("You cannot delete yourself!");
+                    } else {
+                        try {
+                            userDAO.delete(idToDelete);
+                            System.out.println("User " + idToDelete + " deleted successfully.");
+                        } catch (DataNotFoundException e) {
+                            System.out.println("Error: " + e.getMessage());
+                        }
+                    }
+                    break;
+                case "3":
+                    back = true;
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // SCENE 2: STAFF (Manage Warehouse/Stock)
+    // ----------------------------------------------------------------
+    private static void runStaffScene() {
+        boolean back = false;
+        while (!back) {
+            System.out.println("\n--- STAFF WAREHOUSE MANAGER ---");
+            System.out.println("1. List Warehouses");
+            System.out.println("2. Create Warehouse");
+            System.out.println("3. Add Item to Warehouse");
+            System.out.println("4. Logout");
+
+            String choice = readString("Choose option: ");
+            switch (choice) {
+                case "1":
+                    // Putem refolosi logica, dar simplificat
+                    List<Warehouse> list = warehouseDAO.findAll();
+                    list.forEach(w -> System.out.println("Warehouse: " + w.getName() + " (ID: " + w.getWarehouse_id() + ")"));
+                    break;
+                case "2":
+                    String name = readString("New Warehouse Name: ");
+                    Warehouse w = new Warehouse();
+                    w.setName(name);
+                    w.setUser_id(currentUser.getUser_id());
+                    try {
+                        warehouseDAO.create(w);
+                        System.out.println("Warehouse created.");
+                    } catch (DuplicateEntryException e) {
+                        System.out.println("Error: " + e.getMessage());
+                    }
+                    break;
+                case "3":
+                    // Simple logic to add item
+                    List<Warehouse> whs = warehouseDAO.findAll();
+                    if(whs.isEmpty()) {
+                        System.out.println("No warehouses available.");
+                        break;
+                    }
+                    whs.forEach(wh -> System.out.println(wh.getWarehouse_id() + ": " + wh.getName()));
+                    int whId = readInt("Select Warehouse ID: ");
+
+                    // Verificare simplă dacă există ID-ul local (se poate face și cu DAO findById)
+                    boolean exists = whs.stream().anyMatch(wh -> wh.getWarehouse_id() == whId);
+                    if(!exists) {
+                        System.out.println("Invalid ID.");
+                        break;
+                    }
+
+                    String itemName = readString("Item Name: ");
+                    double qty = readPositiveDouble("Quantity: ");
+
+                    Item item = new Item();
+                    item.setName(itemName);
+                    item.setCurrent_quantity(qty);
+                    item.setWarehouse_id(whId);
+                    item.setUser_id(currentUser.getUser_id());
+                    try {
+                        itemDAO.create(item);
+                        System.out.println("Stock updated.");
+                    } catch (DuplicateEntryException e) {
+                        System.out.println("Error: " + e.getMessage());
+                    }
+                    break;
+                case "4":
+                    back = true;
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // SCENE 3: CLIENT (Shopping Lists & Buying)
+    // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
+    // SCENE 3: CLIENT (Shopping Lists & Buying)
+    // ----------------------------------------------------------------
+    private static void runClientScene() {
+        boolean back = false;
+        while (!back) {
+            System.out.println("\n--- CLIENT SHOPPING AREA ---");
+            System.out.println("1. My Shopping Lists");
+            System.out.println("2. Create New Shopping List");
+            System.out.println("3. Add Item to Shopping List");
+            System.out.println("4. Delete My Account"); // <--- Am adaugat optiunea
+            System.out.println("5. Logout");
+
+            String choice = readString("Choose option: ");
+            switch (choice) {
+                case "1":
+                    // ... (Logica de afisare liste ramane la fel)
+                    List<ShoppingList> lists = shoppingListDAO.findAll();
+                    if(lists.isEmpty()) System.out.println("No lists found.");
+                    else {
+                        for(ShoppingList sl : lists) {
+                            System.out.println("List: " + sl.getName());
+                            List<ShoppingListItem> items = shoppingListItemDAO.findByList(sl.getList_id());
+                            items.forEach(i -> System.out.println("  - " + i.getName() + ": " + i.getQuantity()));
+                        }
+                    }
+                    break;
+                case "2":
+                    // ... (Logica creare lista ramane la fel)
+                    String listName = readString("Enter List Name: ");
+                    ShoppingList sl = new ShoppingList();
+                    sl.setName(listName);
+                    sl.setUser_id(currentUser.getUser_id());
+                    try {
+                        shoppingListDAO.create(sl);
+                        System.out.println("List created.");
+                    } catch (DuplicateEntryException e) {
+                        System.out.println(e.getMessage());
+                    }
+                    break;
+                case "3":
+                    // ... (Logica adaugare item ramane la fel)
+                    String targetList = readString("Target List Name: ");
+                    ShoppingList foundList = shoppingListDAO.findAll().stream()
+                            .filter(l -> l.getName().equalsIgnoreCase(targetList))
+                            .findFirst().orElse(null);
+
+                    if(foundList == null) {
+                        System.out.println("List not found.");
+                        break;
+                    }
+
+                    String iName = readString("Item Name: ");
+                    double iQty = readPositiveDouble("Quantity: ");
+
+                    ShoppingListItem sli = new ShoppingListItem();
+                    sli.setName(iName);
+                    sli.setQuantity(iQty);
+                    sli.setList_id(foundList.getList_id());
+                    sli.setUser_id(currentUser.getUser_id());
+                    try {
+                        shoppingListItemDAO.create(sli);
+                        System.out.println("Item added to list.");
+                    } catch(DuplicateEntryException e) {
+                        System.out.println(e.getMessage());
+                    }
+                    break;
+
+                case "4": // --- LOGICA DE STERGERE CONT REINTRODUSA ---
+                    String confirm = readString("Are you sure you want to delete your account? (yes/no): ");
+                    if ("yes".equalsIgnoreCase(confirm)) {
+                        try {
+                            // Ștergem userul curent
+                            userDAO.delete(currentUser.getUser_id());
+                            System.out.println("Account deleted. We are sorry to see you go.");
+
+                            // Forțăm ieșirea din bucla while pentru a ne întoarce la Login
+                            back = true;
+                        } catch (DataNotFoundException e) {
+                            System.out.println("Error deleting account: " + e.getMessage());
+                        }
+                    } else {
+                        System.out.println("Deletion cancelled.");
+                    }
+                    break;
+
+                case "5":
+                    back = true;
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // AUTH HELPERS
+    // ----------------------------------------------------------------
+    private static boolean login() {
+        System.out.println("\n--- LOGIN ---");
+        String email = readEmail(); // Folosește validarea
+        System.out.print("Enter password: ");
+        String pass = scanner.nextLine();
+
+        try {
+            User user = userDAO.findByEmail(email);
+            if (user.getPassword().equals(pass)) {
+                currentUser = user;
+                return true;
+            } else {
+                System.out.println("Authentication failed: Wrong password.");
+            }
+        } catch (DataNotFoundException e) {
+            System.out.println("Authentication failed: User not found.");
+        }
+        return false;
+    }
+
+    private static void register() {
+        System.out.println("\n--- REGISTER ---");
+        String name = readString("Enter Name: ");
+        String email = readEmail();
+        System.out.print("Enter password: ");
+        String pass = scanner.nextLine();
+        while(!InputValidator.isNonEmptyString(pass)) {
+            System.out.println("Password cannot be empty.");
+            System.out.print("Enter password: ");
+            pass = scanner.nextLine();
+        }
+
+        // Aici selectăm rolul pentru a testa Scenele (în realitate ar fi default Client)
+        System.out.println("Select Role: 1. Client, 2. Staff, 3. Admin");
+        String roleOpt = readString("Option: ");
+        String role = "CLIENT";
+        if(roleOpt.equals("2")) role = "STAFF";
+        if(roleOpt.equals("3")) role = "ADMIN";
+
+        User u = new User();
+        u.setName(name);
+        u.setEmail(email);
+        u.setPassword(pass);
+        u.setRole(role);
+
+        try {
+            userDAO.create(u);
+            System.out.println("Registration successful! Please login.");
+        } catch (DuplicateEntryException e) {
+            System.out.println("Registration failed: " + e.getMessage());
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // VALIDATION HELPERS (Req 9)
+    // ----------------------------------------------------------------
+
+    // Citește un string care nu e gol
+    private static String readString(String prompt) {
+        System.out.print(prompt);
+        String input = scanner.nextLine();
+        while (!InputValidator.isNonEmptyString(input)) {
+            System.out.println("Input cannot be empty.");
+            System.out.print(prompt);
+            input = scanner.nextLine();
+        }
+        return input.trim();
+    }
+
+    // Citește un email valid
+    private static String readEmail() {
+        System.out.print("Enter Email: ");
+        String email = scanner.nextLine();
+        while (!InputValidator.isValidEmail(email)) {
+            System.out.println("Invalid email format. Try again.");
+            System.out.print("Enter Email: ");
+            email = scanner.nextLine();
+        }
+        return email.trim();
+    }
+
+    // Citește un double pozitiv (evită crash la input gen "abc")
+    private static double readPositiveDouble(String prompt) {
+        System.out.print(prompt);
+        String input = scanner.nextLine();
+        while (!InputValidator.isPositiveDouble(input)) {
+            System.out.println("Please enter a valid positive number.");
+            System.out.print(prompt);
+            input = scanner.nextLine();
+        }
+        return Double.parseDouble(input.trim());
+    }
+
+    // Citește un int (evită crash)
+    private static int readInt(String prompt) {
+        System.out.print(prompt);
+        String input = scanner.nextLine();
+        while (!InputValidator.isInteger(input)) {
+            System.out.println("Please enter a valid integer ID.");
+            System.out.print(prompt);
+            input = scanner.nextLine();
+        }
+        return Integer.parseInt(input.trim());
+    }
+}
