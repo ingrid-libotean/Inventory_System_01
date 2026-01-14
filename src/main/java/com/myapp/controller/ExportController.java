@@ -15,7 +15,7 @@ public class ExportController {
             try {
                 System.out.println("--- [Thread-ul Secundar] Începe exportul datelor... ---");
 
-                // Simulăm o operațiune grea (durează 5 secunde)
+                // Simulam o operațiune grea (durează 5 secunde)
                 Thread.sleep(5000);
 
                 System.out.println("--- [Thread-ul Secundar] Export finalizat! Fisier salvat. ---");
@@ -28,7 +28,7 @@ public class ExportController {
         // Pornim thread-ul
         exportThread.start();
 
-        // Serverul returnează răspunsul IMEDIAT, nu așteaptă cele 5 secunde
+        // Serverul returneaza raspunsul IMEDIAT, nu așteaptă cele 5 secunde
         return "Export started in background! Check server console.";
     }
 }

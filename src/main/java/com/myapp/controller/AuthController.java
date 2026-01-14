@@ -22,17 +22,18 @@ public class AuthController {
     public String registerUser(@RequestBody User newUser) {
         // --- VALIDARE (Req #9) ---
 
-        // 1. Verifică dacă câmpurile sunt goale
+        // 1. Check if we have empty space
         if (!InputValidator.isNonEmptyString(newUser.getName())) {
             return "Error: Name cannot be empty!";
         }
 
-        // 2. Verifică formatul email-ului
-        if (!InputValidator.isValidEmail(newUser.getEmail())) {
+        // 2. Check email format
+        if (!InputValidator.isValidEmail(newUser.getEmail()))
+        {
             return "Error: Invalid email format!";
         }
 
-        // 3. Verifică lungimea parolei (poți adăuga o metodă în InputValidator pt asta)
+        // 3. Check the password length
         if (!InputValidator.isNonEmptyString(newUser.getPassword()) || newUser.getPassword().length() < 4) {
             return "Error: Password must be at least 4 characters!";
         }

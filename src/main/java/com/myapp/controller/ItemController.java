@@ -21,10 +21,10 @@ public class ItemController {
         return itemRepository.findByWarehouseId(warehouseId);
     }
 
-    // 2. Adaugă un item nou
+    // 2. Adauga un item nou
     @PostMapping("/add")
     public Item addItem(@RequestBody Item item) {
-        // Aici am putea adăuga logică pentru Transaction (Achiziție), dar momentan doar salvăm
+        // momentan doar salvăm
         return itemRepository.save(item);
     }
 
